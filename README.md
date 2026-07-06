@@ -10,7 +10,7 @@ An autonomous, AI-driven equities trading pipeline running headless on an Oracle
 
 ## Pipeline at a glance
 
-Four clocks, five AI agents, two sources of truth. (Interactive diagram: [`docs/pipeline.html`](docs/pipeline.html) — enable GitHub Pages or download & open locally · architecture blueprint: [`docs/architecture.md`](docs/architecture.md).)
+Four clocks, five AI agents, two sources of truth. (**[▶ Interactive diagram](https://nguyenaax.github.io/ai-trader/docs/pipeline.html)** · [architecture blueprint](docs/architecture.md).)
 
 ```mermaid
 flowchart TD
