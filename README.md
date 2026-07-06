@@ -2,7 +2,7 @@
 
 An autonomous, AI-driven equities trading pipeline running headless on an Oracle Linux VM against an **Alpaca paper account**. Five Gemini agents propose; hardcoded deterministic gates dispose.
 
-**This repository is a showcase, not the source.** It documents the architecture and the production engineering behind the system — the full implementation (agent prompts, strategy logic, filter calibration) is private. A selection of infrastructure code is included in [`engineering/`](engineering/); I'm happy to walk through the complete codebase in an interview setting.
+**This repository is a showcase, not the source.** It documents the architecture and the production engineering behind the system — the full implementation (agent prompts, strategy logic, filter calibration) is private. A selection of infrastructure code is included in [`engineering/`](engineering/); 
 
 > ⚠️ Educational project. Paper trading only. Nothing here is financial advice.
 >
