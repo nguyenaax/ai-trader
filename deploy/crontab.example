@@ -1,0 +1,8 @@
+# ai-trader schedule — EXAMPLE. Set the path/user to match your host.
+# Paths reflect the private repo's layout; the reconciliation tool published here under
+# engineering/ lives at tools/build_reconciled_ledger.py in the private repo.
+#
+# Acquisition loop: every 30 min during market hours, weekdays
+*/30 9-16 * * 1-5 cd /opt/ai-trader && ./venv/bin/python ai_trader.py >> execution.log 2>&1
+# Weekend forensics: rebuild the broker-reconciled ledger, then run the AI audit
+0 9 * * 0 cd /opt/ai-trader && ./venv/bin/python tools/build_reconciled_ledger.py >> weekend_analysis.log 2>&1; ./venv/bin/python weekend_analysis.py >> weekend_analysis.log 2>&1

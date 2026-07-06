@@ -1,0 +1,18 @@
+[Unit]
+Description=AI Trader Alpaca Fill Listener (logs sell fills to trade_logs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# EXAMPLE values — set User and paths to match your host.
+User=trader
+WorkingDirectory=/opt/ai-trader
+ExecStart=/opt/ai-trader/venv/bin/python -u /opt/ai-trader/alpaca_listener.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/ai-trader/listener.log
+StandardError=append:/opt/ai-trader/listener.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ai-trader — Agent Pipeline</title>
+<style>
+  :root{
+    --bg:#0C111D; --panel:#121A2B; --panel2:#0F1626; --line:#26314A;
+    --ink:#E9EEF8; --mute:#93A0BC; --faint:#5C6A8A;
+    --ai:#A78BFA; --gate:#62B6D9; --ext:#D9A05B; --data:#7BC98F; --halt:#E5697E;
+    --mono:ui-monospace,"Cascadia Code","Cascadia Mono",Consolas,"Courier New",monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;margin:0;padding:40px 20px 72px}
+  .wrap{max-width:900px;margin:0 auto}
+  a{color:var(--gate)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  h1{font-size:30px;line-height:1.15;margin:10px 0 8px;text-wrap:balance;font-weight:650}
+  .sub{color:var(--mute);max-width:62ch;margin:0 0 22px}
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:10px 18px;padding:14px 16px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;margin-bottom:36px}
+  .key{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+  .swatch{width:10px;height:10px;border-radius:2px;flex:none}
+  /* sections */
+  .lane-title{display:flex;align-items:baseline;gap:12px;margin:44px 0 6px}
+  .lane-title h2{font-size:17px;margin:0;font-weight:650}
+  .lane-title .clock{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.08em}
+  .lane-sub{color:var(--mute);font-size:13px;margin:0 0 18px;max-width:70ch}
+  /* stage cards */
+  .stage{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--kind,var(--line));border-radius:6px;padding:14px 16px 13px}
+  .stage.ai{--kind:var(--ai)} .stage.gate{--kind:var(--gate)} .stage.ext{--kind:var(--ext)}
+  .stage.data{--kind:var(--data)} .stage.halt{--kind:var(--halt)}
+  .stage-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .stage-name{font-weight:650;font-size:15px}
+  .stage-name .file{font-family:var(--mono);font-weight:400;font-size:11.5px;color:var(--faint);margin-left:8px}
+  .kind-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--kind,var(--mute));border:1px solid var(--kind,var(--line));border-radius:3px;padding:2px 7px;flex:none}
+  .stage p{margin:7px 0 0;color:var(--mute);font-size:13px;max-width:75ch}
+  .stage p b{color:var(--ink);font-weight:600}
+  /* chips row: what a stage talks to */
+  .io{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;padding:2.5px 8px;border-radius:3px;border:1px solid;white-space:nowrap}
+  .chip.ext{color:var(--ext);border-color:color-mix(in srgb,var(--ext) 45%,transparent);background:color-mix(in srgb,var(--ext) 8%,transparent)}
+  .chip.data{color:var(--data);border-color:color-mix(in srgb,var(--data) 45%,transparent);background:color-mix(in srgb,var(--data) 8%,transparent)}
+  .chip.ai{color:var(--ai);border-color:color-mix(in srgb,var(--ai) 45%,transparent);background:color-mix(in srgb,var(--ai) 8%,transparent)}
+  .chip.halt{color:var(--halt);border-color:color-mix(in srgb,var(--halt) 45%,transparent);background:color-mix(in srgb,var(--halt) 8%,transparent)}
+  /* connectors */
+  .link{display:flex;flex-direction:column;align-items:center;height:30px;justify-content:center;position:relative}
+  .link::before{content:"";width:1px;flex:1;background:var(--line)}
+  .link::after{content:"";border:5px solid transparent;border-top-color:var(--line);border-bottom:none;margin-top:-1px}
+  .link .exit{position:absolute;right:0;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10.5px;color:var(--halt);letter-spacing:.03em}
+  /* filter gauntlet sub-rows */
+  .gauntlet{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .g-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:8px 12px;flex-wrap:wrap}
+  .g-row .g-name{font-size:13px;font-weight:600}
+  .g-row .g-what{color:var(--mute);font-size:12.5px;flex:1;min-width:200px}
+  .g-row .g-rej{font-family:var(--mono);font-size:10.5px;color:var(--halt);white-space:nowrap}
+  /* dual agent block */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .duo .half{background:var(--panel2);border:1px solid color-mix(in srgb,var(--ai) 30%,var(--line));border-radius:4px;padding:10px 12px}
+  .duo .half h4{margin:0 0 4px;font-size:13px;color:var(--ai);font-family:var(--mono);font-weight:600;letter-spacing:.03em}
+  .duo .half p{margin:0;font-size:12.5px;color:var(--mute)}
+  /* lanes grid */
+  .lanes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch}
+  .lanes .stage{display:flex;flex-direction:column}
+  .lanes .stage .io{margin-top:auto;padding-top:12px}
+  /* meeting points */
+  .stores{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .stores .stage p{max-width:none}
+  .note{margin-top:36px;padding:14px 16px;border:1px dashed var(--line);border-radius:6px;color:var(--mute);font-size:12.5px}
+  .note b{color:var(--ink)}
+  code{font-family:var(--mono);font-size:.92em;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+  @media (max-width:820px){ .lanes{grid-template-columns:1fr} .stores{grid-template-columns:1fr} .duo{grid-template-columns:1fr} body{padding:24px 14px 56px} }
+  @media (prefers-reduced-motion: no-preference){ .stage{transition:border-color .15s} .stage:hover{border-color:color-mix(in srgb,var(--kind,var(--line)) 55%,var(--line))} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Oracle Linux VM · Alpaca paper account · cron + systemd · Gemini 2.5 Flash</div>
+    <h1>ai-trader — agent pipeline</h1>
+    <p class="sub">Five Gemini agents and a gauntlet of deterministic gates, running on four different clocks that all meet at two sources of truth: the Alpaca account and <code>trading_memory.db</code>.</p>
+    <div class="legend">
+      <span class="key"><span class="swatch" style="background:var(--ai)"></span>AI agent (Gemini)</span>
+      <span class="key"><span class="swatch" style="background:var(--gate)"></span>Deterministic gate</span>
+      <span class="key"><span class="swatch" style="background:var(--ext)"></span>External service</span>
+      <span class="key"><span class="swatch" style="background:var(--data)"></span>Data store</span>
+      <span class="key"><span class="swatch" style="background:var(--halt)"></span>Halt / veto path</span>
+    </div>
+  </header>
+
+  <!-- ============ LANE 1: THE 30-MINUTE LOOP ============ -->
+  <div class="lane-title">
+    <h2>The acquisition loop</h2>
+    <span class="clock">cron · */30 9–16 · Mon–Fri · ai_trader.py</span>
+  </div>
+  <p class="lane-sub">One straight run every 30 minutes during market hours. Any gate can end the cycle early — order on this page is execution order.</p>
+
+  <div class="stage gate">
+    <div class="stage-head"><span class="stage-name">Market clock gate</span><span class="kind-tag">gate</span></div>
+    <p>Local pre-filter, then the authoritative Alpaca <code>/clock</code> check. Blind-to-holidays Python time never decides — a closed exchange ends the cycle here.</p>
+    <div class="io"><span class="chip ext">Alpaca clock API</span></div>
+  </div>
+  <div class="link"><span class="exit">closed → end cycle</span></div>
+
+  <div class="stage ai">
+    <div class="stage-head"><span class="stage-name">News Engine <span class="file">news_engine.py</span></span><span class="kind-tag">ai agent</span></div>
+    <p>Pulls live headlines, hashes them against a seen-cache so nothing is paid for twice, and asks Gemini which stories are <b>actionable catalysts</b> for the event-driven playbook.</p>
+    <div class="io"><span class="chip ext">Finnhub news</span><span class="chip ai">Gemini eval</span><span class="chip data">news_cache.json</span></div>
+  </div>
+  <div class="link"></div>
+
+  <div class="stage gate">
+    <div class="stage-head"><span class="stage-name">Trailing-risk ratchet</span><span class="kind-tag">gate</span></div>
+    <p>Scans open positions before any new buying: once a position clears a set profit threshold, the stop leg is dragged up to breakeven. Winners get defended before new capital deploys.</p>
+    <div class="io"><span class="chip ext">Alpaca positions</span><span class="chip ext">Alpaca replace-order</span></div>
+  </div>
+  <div class="link"></div>
+
+  <div class="stage halt">
+    <div class="stage-head"><span class="stage-name">Red Team circuit breaker</span><span class="kind-tag">safety · 2 stages</span></div>
+    <p><b>Stage 1 — deterministic math:</b> broad-market drawdown and volatility checked against fixed thresholds, no AI involved. <b>Stage 2 — AI threat intel:</b> top macro headlines go to Gemini scanning for a strict, enumerated set of systemic threats (list private). Trips halt <b>buying only</b> — stops keep protecting open positions. Fails open on API errors.</p>
+    <div class="io"><span class="chip ext">yfinance SPY/VIX</span><span class="chip ext">Finnhub headlines</span><span class="chip ai">Gemini threat analyst</span><span class="chip halt">halt → Discord alert</span></div>
+  </div>
+  <div class="link"><span class="exit">tripped → end cycle</span></div>
+
+  <div class="stage ext">
+    <div class="stage-head"><span class="stage-name">Ingestion — insider cluster buys</span><span class="kind-tag">source</span></div>
+    <p>Pulls a public insider-transaction feed for cluster buys — multiple insiders buying the same name — as the candidate universe (~100 tickers). Resilient ingestion: jittered cadence and soft-block pages retried like network failures.</p>
+    <div class="io"><span class="chip ext">insider-transaction feed</span></div>
+  </div>
+  <div class="link"><span class="exit">no candidates → end cycle</span></div>
+
+  <div class="stage gate">
+    <div class="stage-head"><span class="stage-name">The filter gauntlet</span><span class="kind-tag">4 gates</span></div>
+    <p>Every candidate must survive all four. Each rejection is logged with its reason — the funnel is auditable end to end.</p>
+    <div class="gauntlet">
+      <div class="g-row"><span class="g-name">Already-held guard</span><span class="g-what">drop tickers the account already holds</span><span class="g-rej">→ skip</span></div>
+      <div class="g-row"><span class="g-name">Earnings blackout</span><span class="g-what">earnings inside a blackout window = binary gap risk</span><span class="g-rej">→ triage_history.csv</span></div>
+      <div class="g-row"><span class="g-name">Re-entry cooldown</span><span class="g-what">a recent entry or still-open position in the same name — kills revenge stacking</span><span class="g-rej">→ triage_history.csv</span></div>
+      <div class="g-row"><span class="g-name">Liquidity gate</span><span class="g-what">avg dollar-volume below a calibrated floor — thin names gap through the stop</span><span class="g-rej">→ triage_history.csv</span></div>
+    </div>
+    <div class="io"><span class="chip ext">yfinance profile</span><span class="chip data">trade_logs (cooldown)</span><span class="chip data">triage_history.csv</span></div>
+  </div>
+  <div class="link"></div>
+
+  <div class="stage gate">
+    <div class="stage-head"><span class="stage-name">Tactical profiling</span><span class="kind-tag">compute</span></div>
+    <p>Per survivor, one pass builds the technical payload: momentum, candlestick patterns, distance to the nearest high-volume node, a premium/discount swing-equilibrium zone, and the dollar-volume already used by the gate.</p>
+    <div class="io"><span class="chip ext">yfinance OHLCV bars</span></div>
+  </div>
+  <div class="link"></div>
+
+  <div class="stage ai">
+    <div class="stage-head"><span class="stage-name">Signal + Critic — the masked debate</span><span class="kind-tag">ai agents · 1 call</span></div>
+    <p>Tickers are anonymized (<code>NVDA → ASSET_1</code>) so the model can't lean on brand priors, then every survivor is judged in a <b>single batched Gemini call</b> at low temperature:</p>
+    <div class="duo">
+      <div class="half"><h4>Signal Agent</h4><p>Builds the bullish thesis from sector profile + technical payload.</p></div>
+      <div class="half"><h4>Adversarial Critic</h4><p>Attacks it. A set of hard technical veto rules (overbought momentum, bearish reversal, low confidence, adverse volume structure) overrides any enthusiasm — exact rules private.</p></div>
+    </div>
+    <div class="io"><span class="chip ai">Gemini 2.5 Flash</span><span class="chip halt">VETO → triage_history.csv</span></div>
+  </div>
+  <div class="link"><span class="exit">veto → drop ticker</span></div>
+
+  <div class="stage ext">
+    <div class="stage-head"><span class="stage-name">Bracket-order execution</span><span class="kind-tag">action</span></div>
+    <p>Approved names get a <b>fixed parity-sized</b> bracket order: entry + hard stop + profit target at fixed percentages, all placed together. Risk numbers are hardcoded — no agent can change them. The entry is logged with its full feature payload.</p>
+    <div class="io"><span class="chip ext">Alpaca orders</span><span class="chip data">trade_logs entry</span><span class="chip ext">Discord telemetry</span></div>
+  </div>
+
+  <!-- ============ LANE 2: OTHER CLOCKS ============ -->
+  <div class="lane-title">
+    <h2>The other three clocks</h2>
+    <span class="clock">systemd · sunday cron · on demand</span>
+  </div>
+  <p class="lane-sub">The 30-minute loop only opens positions. Everything that closes, audits, or observes them runs on its own schedule.</p>
+
+  <div class="lanes">
+    <div class="stage data">
+      <div class="stage-head"><span class="stage-name">Fill listener <span class="file">alpaca_listener.py</span></span><span class="kind-tag">always on</span></div>
+      <p>systemd service (<code>Restart=always</code>, boot-enabled) on Alpaca's trade-update WebSocket. Every SELL fill closes the loop the entry opened — exit price, realized %, and exit reason stamped onto the matching row.</p>
+      <div class="io"><span class="chip ext">Alpaca WebSocket</span><span class="chip data">trade_logs exit</span></div>
+    </div>
+
+    <div class="stage ai">
+      <div class="stage-head"><span class="stage-name">Weekend forensics <span class="file">weekend_analysis.py</span></span><span class="kind-tag">sun 09:00</span></div>
+      <p>First the <b>ledger builder</b> FIFO-matches every real Alpaca fill into <code>trades_reconciled</code> (validated 1:1 against live positions). Then the <b>Auditor agent</b> (low temperature) reads it plus the veto log and returns exactly 3 data-backed parameter adjustments.</p>
+      <div class="io"><span class="chip ext">Alpaca fill history</span><span class="chip data">trades_reconciled</span><span class="chip ai">Gemini auditor</span><span class="chip data">weekend_audit_report.md</span></div>
+    </div>
+
+    <div class="stage gate">
+      <div class="stage-head"><span class="stage-name">Observability <span class="file">telemetry_dashboard.py</span></span><span class="kind-tag">on demand</span></div>
+      <p>Streamlit console: open-position count straight from the broker, win-rate and realized P&amp;L from the reconciled ledger, feature analytics from the self-log. Plus <code>reconcile_alpaca.py</code> — a read-only DB↔broker diff for drift hunting.</p>
+      <div class="io"><span class="chip ext">Alpaca live</span><span class="chip data">reconciled_closed</span><span class="chip data">trade_logs</span></div>
+    </div>
+  </div>
+
+  <!-- ============ LANE 3: MEETING POINTS ============ -->
+  <div class="lane-title">
+    <h2>Where everything meets</h2>
+    <span class="clock">two sources of truth</span>
+  </div>
+
+  <div class="stores">
+    <div class="stage ext">
+      <div class="stage-head"><span class="stage-name">Alpaca paper account</span><span class="kind-tag">broker of record</span></div>
+      <p>The ground truth for positions, orders, and fills. The loop writes orders to it; the listener hears fills from it; the ledger builder and dashboard read it back. When the self-log and the broker disagree, <b>the broker wins</b>.</p>
+    </div>
+    <div class="stage data">
+      <div class="stage-head"><span class="stage-name">trading_memory.db <span class="file">SQLite · WAL</span></span><span class="kind-tag">memory</span></div>
+      <p><code>trade_logs</code> — the bot's self-log (entries, exits, feature payloads; feeds the cooldown gate). <code>trades_reconciled</code> — the broker-derived ledger for anything analytical. Clean views (<code>trade_logs_clean</code>, <code>reconciled_closed</code>…) de-noise both for offline work.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Model plumbing:</b> every AI call runs Gemini 2.5 Flash with automatic fallback to a lighter model on quota errors, wrapped in exponential-backoff retry. <b>Design stance:</b> agents propose, gates dispose — position size, stop, and target are hardcoded outside the LLM context window, and every rejection lands in <code>triage_history.csv</code> so the funnel can be audited after the fact. <b>Note:</b> file names refer to the private codebase; published excerpts live in <code>engineering/</code>, and exact prompts, thresholds, and strategy parameters are not included.
+  </div>
+</div>
+</body>
+</html>
